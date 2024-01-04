@@ -65,4 +65,7 @@ public class Mentor extends BaseEntity {
     this.user = user;
   }
 
+  @OneToOne(mappedBy = "mentor")
+  private User user;
+
 }
