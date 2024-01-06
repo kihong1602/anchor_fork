@@ -1,7 +1,6 @@
 package com.anchor.domain.mentoring.domain;
 
 import com.anchor.domain.mentoring.api.controller.request.MentoringApplicationInfo;
-
 import com.anchor.domain.payment.domain.Payment;
 import com.anchor.domain.user.api.controller.request.MentoringStatusInfo.RequiredMentoringStatusInfo;
 import com.anchor.domain.user.domain.User;
@@ -85,6 +84,10 @@ public class MentoringApplication extends BaseEntity {
         this.endDateTime.isEqual(requiredMentoringStatusInfo.getEndDateTime());
   }
 
+  public boolean isExistPayment() {
+    return this.payment != null;
+  }
+
   public void changePayment(Payment payment) {
     setPayment(payment);
   }
@@ -113,4 +116,5 @@ public class MentoringApplication extends BaseEntity {
     return Objects.hash(getStartDateTime(), getEndDateTime(), getMentoringStatus(), getMentoring(),
         getPayment(), getUser());
   }
+
 }
