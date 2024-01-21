@@ -1,10 +1,13 @@
 package com.anchor.domain.mentoring.domain.repository.custom;
 
+import com.anchor.domain.mentor.api.service.response.AppliedMentoringSearchResult;
 import com.anchor.domain.mentoring.domain.MentoringApplication;
 import com.anchor.domain.mentoring.domain.MentoringStatus;
+import com.anchor.domain.user.api.service.response.AppliedMentoringInfo;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface QMentoringApplicationRepository {
 
@@ -14,15 +17,11 @@ public interface QMentoringApplicationRepository {
       LocalDateTime endDateTime
   );
 
-  List<MentoringApplication> findTimesByMentoringIdAndStatus(
-      Long mentorId, MentoringStatus... statuses);
+  List<MentoringApplication> findUnavailableTimesByMentoringIdAndStatus(Long mentorId, MentoringStatus... statuses);
 
-  Optional<MentoringApplication> findAppliedMentoringByTimeAndUserId
-      (LocalDateTime startDateTime, LocalDateTime endDateTime, Long userId);
+  Page<AppliedMentoringSearchResult> findAllByMentorId(Long mentorId, Pageable pageable);
 
-  Optional<MentoringApplication> findMentoringApplicationByTimeRangeAndUserId
-      (LocalDateTime startDateTime, LocalDateTime endDateTime, Long userId);
+  List<MentoringApplication> findByMentoringId(Long mentoringId);
 
-  Optional<MentoringApplication> findMentoringApplicationByMentoringId
-      (LocalDateTime startDateTime, LocalDateTime endDateTime, Long mentoringId);
+  Page<AppliedMentoringInfo> findByUserId(Long userId, Pageable pageable);
 }

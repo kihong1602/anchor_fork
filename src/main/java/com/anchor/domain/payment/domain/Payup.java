@@ -1,29 +1,52 @@
 package com.anchor.domain.payment.domain;
 
 import com.anchor.domain.mentor.domain.Mentor;
+import com.anchor.global.nhpay.PayupCalculator;
 import com.anchor.global.util.BaseEntity;
-import jakarta.persistence.*;
-
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.LastModifiedDate;
 
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 public class Payup extends BaseEntity {
 
-    // 정산 관련 기능 추가 필요
+  private Integer amount;
 
-    private Integer amount;
+  @LastModifiedDate
+  @Column(columnDefinition = "datetime")
+  private LocalDateTime payupDateTime = LocalDateTime.MIN;
 
-    @Column(columnDefinition = "datetime")
-    private LocalDateTime payUpDateTime;
+  @Enumerated(EnumType.STRING)
+  private PayupStatus payupStatus = PayupStatus.WAITING;
 
-    @Enumerated(EnumType.STRING)
-    private PayupStatus payupStatus;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "mentor_id")
+  private Mentor mentor;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "mentor_id")
-    private Mentor mentor;
+  @OneToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payment_id")
+  private Payment payment;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "payment_id")
-    private Payment payment;
+  @Builder
+  private Payup(Mentor mentor, Payment payment) {
+    this.amount = PayupCalculator.totalCalculate(payment.getAmount());
+    this.mentor = mentor;
+    this.mentor.getPayups()
+        .add(this);
+    this.payment = payment;
+  }
+
 }
