@@ -1,5 +1,7 @@
 package com.anchor.domain.mentoring.api.service;
 
+import static com.anchor.global.mail.MentoringMailTitle.APPLY_BY_MENTEE;
+
 import com.anchor.domain.image.domain.Image;
 import com.anchor.domain.image.domain.repository.ImageRepository;
 import com.anchor.domain.mentor.domain.Mentor;
@@ -11,14 +13,12 @@ import com.anchor.domain.mentoring.api.controller.request.MentoringApplicationTi
 import com.anchor.domain.mentoring.api.controller.request.MentoringApplicationUserInfo;
 import com.anchor.domain.mentoring.api.controller.request.MentoringBasicInfo;
 import com.anchor.domain.mentoring.api.controller.request.MentoringContentsInfo;
-import com.anchor.domain.mentoring.api.controller.request.MentoringRatingInterface;
-import com.anchor.domain.mentoring.api.controller.request.MentoringReviewInfoInterface;
 import com.anchor.domain.mentoring.api.service.response.ApplicationTimeInfo;
 import com.anchor.domain.mentoring.api.service.response.MentoringContents;
 import com.anchor.domain.mentoring.api.service.response.MentoringContentsEditResult;
 import com.anchor.domain.mentoring.api.service.response.MentoringCreateResult;
 import com.anchor.domain.mentoring.api.service.response.MentoringDeleteResult;
-import com.anchor.domain.mentoring.api.service.response.MentoringDetailInfo.MentoringDetailSearchResult;
+import com.anchor.domain.mentoring.api.service.response.MentoringDetailInfo;
 import com.anchor.domain.mentoring.api.service.response.MentoringEditResult;
 import com.anchor.domain.mentoring.api.service.response.MentoringOrderUid;
 import com.anchor.domain.mentoring.api.service.response.MentoringPayConfirmInfo;
@@ -28,16 +28,22 @@ import com.anchor.domain.mentoring.api.service.response.TopMentoring;
 import com.anchor.domain.mentoring.domain.Mentoring;
 import com.anchor.domain.mentoring.domain.MentoringApplication;
 import com.anchor.domain.mentoring.domain.MentoringDetail;
+import com.anchor.domain.mentoring.domain.MentoringReview;
+import com.anchor.domain.mentoring.domain.MentoringStatus;
 import com.anchor.domain.mentoring.domain.MentoringTag;
 import com.anchor.domain.mentoring.domain.repository.MentoringApplicationRepository;
 import com.anchor.domain.mentoring.domain.repository.MentoringRepository;
 import com.anchor.domain.mentoring.domain.repository.MentoringReviewRepository;
+import com.anchor.domain.notification.domain.ReceiverType;
 import com.anchor.domain.payment.domain.Payment;
 import com.anchor.domain.payment.domain.repository.PaymentRepository;
 import com.anchor.domain.user.domain.User;
 import com.anchor.domain.user.domain.repository.UserRepository;
 import com.anchor.global.auth.SessionUser;
-import com.anchor.global.redis.ApplicationLockClient;
+import com.anchor.global.mail.AsyncMailSender;
+import com.anchor.global.mail.MailMessage;
+import com.anchor.global.redis.client.ApplicationLockClient;
+import com.anchor.global.redis.message.NotificationEvent;
 import com.anchor.global.util.type.DateTimeRange;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -45,6 +51,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -61,19 +68,11 @@ public class MentoringService {
   private final PaymentRepository paymentRepository;
   private final MentorScheduleRepository mentorScheduleRepository;
   private final MentoringApplicationRepository mentoringApplicationRepository;
+  private final ApplicationEventPublisher applicationEventPublisher;
   private final MentoringReviewRepository mentoringReviewRepository;
   private final ApplicationLockClient applicationLockClient;
   private final PayNumberCreator payNumberCreator;
-
-  public List<MentoringReviewInfoInterface> getMentoringReviews(Long mentoringId) {
-    List<MentoringReviewInfoInterface> reviewList = mentoringReviewRepository.getReviewList(mentoringId);
-    return reviewList;
-  }
-
-  public MentoringRatingInterface getMentoringRatings(Long mentoringId) {
-    MentoringRatingInterface averageRatings = mentoringReviewRepository.getAverageRatings(mentoringId);
-    return averageRatings;
-  }
+  private final AsyncMailSender asyncMailSender;
 
   @Transactional
   public MentoringCreateResult create(Long mentorId, MentoringBasicInfo mentoringBasicInfo) {
@@ -138,10 +137,12 @@ public class MentoringService {
    * 입력한 ID를 통해 멘토링 상세정보를 조회합니다.
    */
   @Transactional(readOnly = true)
-  public MentoringDetailSearchResult getMentoringDetailInfo(Long id) {
-    Mentoring findMentoring = mentoringRepository.findMentoringDetailInfo(id)
+  public MentoringDetailInfo getMentoringDetailInfo(Long id) {
+    Mentoring mentoring = mentoringRepository.findMentoringDetailInfo(id)
         .orElseThrow(() -> new NoSuchElementException(id + "에 해당하는 멘토링이 존재하지 않습니다."));
-    return MentoringDetailSearchResult.of(findMentoring);
+    List<Mentoring> popularMentorings = mentoringRepository.findPopularMentoringTags();
+    List<MentoringReview> mentoringReviews = mentoringReviewRepository.findAllByMentoringId(id);
+    return MentoringDetailInfo.of(mentoring, mentoringReviews, popularMentorings);
   }
 
   /**
@@ -194,13 +195,39 @@ public class MentoringService {
     String key = ApplicationLockClient.createKey(mentor, sessionUser);
     DateTimeRange myApplicationLockTime = applicationLockClient.findByKey(key);
     applicationInfo.addApplicationTime(myApplicationLockTime);
-    User loginUser = getUser(sessionUser);
+    User user = getUser(sessionUser);
     Payment payment = new Payment(applicationInfo);
     MentoringApplication mentoringApplication = new MentoringApplication(applicationInfo, mentoring, payment,
-        loginUser);
+        user);
     mentoringApplicationRepository.save(mentoringApplication);
     applicationLockClient.remove(key);
+    publishNotification(mentoring, mentoringApplication.getMentoringStatus());
+    sendMailToMentor(mentoring, mentor, user, applicationInfo);
     return new MentoringOrderUid(mentoringApplication);
+  }
+
+  private void sendMailToMentor(Mentoring mentoring, Mentor mentor, User user,
+      MentoringApplicationInfo applicationInfo) {
+    asyncMailSender.sendMail(MailMessage.mentoringMessageBuilder()
+        .title(APPLY_BY_MENTEE.getTitle())
+        .mentoringTitle(mentoring.getTitle())
+        .receiverEmail(mentor.getCompanyEmail())
+        .opponentEmail(user.getEmail())
+        .opponentNickName(user.getNickname())
+        .startDateTime(applicationInfo.getStartDateTime())
+        .receiverType(ReceiverType.TO_MENTOR)
+        .build());
+  }
+
+  private void publishNotification(Mentoring mentoring, MentoringStatus mentoringStatus) {
+    applicationEventPublisher.publishEvent(NotificationEvent.builder()
+        .email(mentoring.getMentor()
+            .getCompanyEmail())
+        .mentoringId(mentoring.getId())
+        .title(mentoring.getTitle())
+        .mentoringStatus(mentoringStatus)
+        .receiverType(ReceiverType.TO_MENTOR)
+        .build());
   }
 
   /**
