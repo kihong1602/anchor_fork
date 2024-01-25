@@ -8,6 +8,7 @@ import com.anchor.domain.mentor.api.service.response.AppliedMentoringSearchResul
 import com.anchor.domain.mentoring.domain.MentoringApplication;
 import com.anchor.domain.mentoring.domain.MentoringStatus;
 import com.anchor.domain.user.api.service.response.AppliedMentoringInfo;
+import com.anchor.global.util.type.DateTimeRange;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
@@ -32,10 +33,10 @@ public class QMentoringApplicationRepositoryImpl implements QMentoringApplicatio
   private final JPAQueryFactory jpaQueryFactory;
 
   @Override
-  public MentoringApplication findByMentoringIdAndProgressTime(Long mentoringId,
+  public MentoringApplication findByMentorIdAndProgressTime(Long mentorId,
       LocalDateTime startDateTime, LocalDateTime endDateTime) {
     return jpaQueryFactory.selectFrom(mentoringApplication)
-        .where(mentoringApplication.mentoring.id.eq(mentoringId)
+        .where(mentoringApplication.mentoring.mentor.id.eq(mentorId)
             .and(mentoringApplication.startDateTime.eq(startDateTime))
             .and(mentoringApplication.endDateTime.eq(endDateTime)))
         .fetchOne();
@@ -135,6 +136,23 @@ public class QMentoringApplicationRepositoryImpl implements QMentoringApplicatio
         .toList();
 
     return new PageImpl<>(appliedMentoringInfos, pageable, totalElements);
+  }
+
+  public Long getMentoringId(MentoringApplication application) {
+    return jpaQueryFactory.select(mentoringApplication.mentoring.id)
+        .from(mentoringApplication)
+        .where(mentoringApplication.eq(application))
+        .fetchOne();
+  }
+
+  @Override
+  public List<MentoringApplication> findAllByNotCompleteForWeek(DateTimeRange weekAgoDate) {
+    return jpaQueryFactory.selectFrom(mentoringApplication)
+        .where(
+            mentoringApplication.mentoringStatus.eq(MentoringStatus.APPROVAL)
+                .and(mentoringApplication.endDateTime.goe(weekAgoDate.getFrom()))
+                .and(mentoringApplication.endDateTime.before(weekAgoDate.getTo())))
+        .fetch();
   }
 
   private BooleanBuilder equalsStatuses(MentoringStatus... statuses) {
