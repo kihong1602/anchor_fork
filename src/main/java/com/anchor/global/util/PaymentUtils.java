@@ -2,14 +2,14 @@ package com.anchor.global.util;
 
 
 import com.anchor.domain.mentoring.domain.MentoringStatus;
-import com.anchor.global.portone.request.AccessTokenRequest;
-import com.anchor.global.portone.request.PortOneRequestUrl;
-import com.anchor.global.portone.request.RequiredPaymentData;
-import com.anchor.global.portone.response.AccessTokenResult;
-import com.anchor.global.portone.response.PaymentCancelResult;
-import com.anchor.global.portone.response.PaymentRequestResult;
-import com.anchor.global.portone.response.PaymentResult;
-import com.anchor.global.portone.response.SinglePaymentResult;
+import com.anchor.global.payment.portone.request.AccessTokenRequest;
+import com.anchor.global.payment.portone.request.PortOneRequestUrl;
+import com.anchor.global.payment.portone.request.RequiredPaymentData;
+import com.anchor.global.payment.portone.response.AccessTokenResult;
+import com.anchor.global.payment.portone.response.PaymentCancelResult;
+import com.anchor.global.payment.portone.response.PaymentRequestResult;
+import com.anchor.global.payment.portone.response.PaymentResult;
+import com.anchor.global.payment.portone.response.SinglePaymentResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Optional;
@@ -22,8 +22,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 @Component
-public class PaymentUtils {
-
+public class PaymentClient {
 
   private final RestClient restClient;
 
@@ -35,7 +34,7 @@ public class PaymentUtils {
   @Value("${payment.imp-secret}")
   private String impSecret;
 
-  public PaymentUtils(@Qualifier("paymentRestClient") RestClient restClient, ObjectMapper objectMapper) {
+  public PaymentClient(@Qualifier("paymentRestClient") RestClient restClient, ObjectMapper objectMapper) {
     this.restClient = restClient;
     this.objectMapper = objectMapper;
   }
@@ -60,8 +59,7 @@ public class PaymentUtils {
 
   private String getAccessToken() {
     AccessTokenRequest accessTokenRequest = new AccessTokenRequest(impKey, impSecret);
-    return getToken(accessTokenRequest)
-        .getAccessToken();
+    return getToken(accessTokenRequest).getAccessToken();
   }
 
   private String createPaymentDataRequestUrl(String impUid) {
