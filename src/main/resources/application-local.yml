@@ -1,10 +1,8 @@
 ### default Profile ###
 spring:
   profiles:
-    active: local
-    include:
-      - aws
-      - pay
+    active: prod
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${MYSQL_URL}
@@ -13,10 +11,6 @@ spring:
 
   cache:
     type: caffeine
-
-  jpa:
-    hibernate:
-      ddl-auto: none
 
   servlet:
     multipart:
@@ -30,7 +24,6 @@ spring:
     password: ${MAIL_PASSWORD}
     properties:
       mail:
-        #        debug: true
         smtp:
           auth: true
           timeout: 5000
@@ -43,9 +36,11 @@ spring:
 
   data:
     redis:
-      session:
-        host: ${REDIS_HOST}
-        port: ${REDIS_PORT}
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+    web:
+      pageable:
+        one-indexed-parameters: true
 
   security:
     oauth2:
@@ -85,12 +80,51 @@ rest-template:
 
 cloud:
   aws:
+    credentials:
+      access-key: ${AWS_ACCESS_KEY}
+      secret-key: ${AWS_SECRET_KEY}
+    s3:
+      bucket: ${AWS_IMAGE_STORAGE}
+    region:
+      static: ${AWS_REGION}
+    stack:
+      auto: false
     cron: "0 0 3 * * *"
 
-#  datasource:
-#    url: jdbc:h2:mem:practical-test
-#    username: sa
-#    password:
-#  h2:
-#    console:
-#      enabled: true
+payment:
+  imp-key: ${IMP_KEY}
+  imp-secret: ${IMP_SECRET}
+  imp-code: ${IMP_CODE}
+
+payup:
+  access-token: ${NH_ACCESS_TOKEN}
+  iscd: ${NH_ISCD}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: ture
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+
+email:
+  test: ${TEST_EMAIL}
