@@ -1,52 +1,43 @@
 package com.anchor.domain.mentoring.api.controller.request;
 
-import com.anchor.domain.mentor.domain.Mentor;
-import com.anchor.domain.mentoring.api.service.response.ApplicationUnavailableTime;
-import com.anchor.domain.mentoring.domain.MentoringUnavailableTime;
+import com.anchor.global.exception.type.mentoring.DurationTimeParsingException;
+import com.anchor.global.util.type.DateTimeRange;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.beans.ConstructorProperties;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 @Getter
-@NoArgsConstructor
 public class MentoringApplicationTime {
 
+  @JsonProperty("date")
   @JsonFormat(pattern = "yyyy-MM-dd")
   private LocalDate date;
+
+  @JsonProperty("time")
   @JsonFormat(pattern = "HH:mm")
   private LocalTime time;
-  @JsonProperty("duration_time")
+
   private String durationTime;
 
-  @Builder
+  @ConstructorProperties({"date", "time", "durationTime"})
   private MentoringApplicationTime(LocalDate date, LocalTime time, String durationTime) {
     this.date = date;
     this.time = time;
     this.durationTime = durationTime;
   }
 
-  public MentoringUnavailableTime convertToMentoringUnavailableTime(Mentor mentor) {
-    LocalDateTime fromDateTime = getFromDateTime();
-    LocalDateTime toDateTime = getToDateTime();
-
-    return new MentoringUnavailableTime(fromDateTime, toDateTime, mentor);
+  public static MentoringApplicationTime of(LocalDate date, LocalTime time, String durationTime) {
+    return new MentoringApplicationTime(date, time, durationTime);
   }
 
-  public ApplicationUnavailableTime convertToMentoringUnavailableTimeResponse() {
-    LocalDateTime fromDateTime = getFromDateTime();
-    LocalDateTime toDateTime = getToDateTime();
-
-    return ApplicationUnavailableTime.builder()
-        .fromDateTime(fromDateTime)
-        .toDateTime(toDateTime)
-        .build();
+  public DateTimeRange convertDateTimeRange() {
+    return DateTimeRange.of(getFromDateTime(), getToDateTime());
   }
 
   public LocalDateTime getFromDateTime() {
@@ -66,6 +57,6 @@ public class MentoringApplicationTime {
           .plusHours(hour)
           .plusMinutes(minute);
     }
-    throw new RuntimeException("올바르지 않은 durationTime 형식입니다.");
+    throw new DurationTimeParsingException();
   }
 }
