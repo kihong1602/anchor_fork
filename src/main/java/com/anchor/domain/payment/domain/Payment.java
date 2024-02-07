@@ -2,7 +2,7 @@ package com.anchor.domain.payment.domain;
 
 import com.anchor.domain.mentoring.api.controller.request.MentoringApplicationInfo;
 import com.anchor.domain.mentoring.domain.MentoringApplication;
-import com.anchor.global.portone.response.PaymentCancelResult;
+import com.anchor.global.payment.portone.response.PaymentCancelResult;
 import com.anchor.global.util.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,6 +10,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,25 +19,26 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
+@Table(name = "payment")
 public class Payment extends BaseEntity {
 
-  @Column(nullable = false, unique = true)
+  @Column(name = "imp_uid", nullable = false, unique = true)
   private String impUid;
 
-  @Column(nullable = false, unique = true)
+  @Column(name = "merchant_uid", nullable = false, unique = true)
   private String merchantUid;
 
-  @Column(nullable = false, unique = true)
+  @Column(name = "order_uid", nullable = false, unique = true)
   private String orderUid;
 
   @Column(nullable = false)
   private Integer amount;
 
-  @Column(nullable = false)
+  @Column(name = "cancel_amount", nullable = false)
   private Integer cancelAmount = 0;
 
   @Enumerated(EnumType.STRING)
-  @Column(nullable = false)
+  @Column(name = "payment_status", nullable = false)
   private PaymentStatus paymentStatus = PaymentStatus.SUCCESS;
 
   @OneToOne(mappedBy = "payment", fetch = FetchType.LAZY, optional = false)
@@ -65,9 +67,9 @@ public class Payment extends BaseEntity {
     return this.paymentStatus.equals(PaymentStatus.CANCELLED);
   }
 
-  public void editPaymentCancelStatus(PaymentCancelResult PaymentCancelDetail) {
+  public void editPaymentCancelStatus(PaymentCancelResult paymentCancelResult) {
     this.paymentStatus = PaymentStatus.CANCELLED;
-    this.cancelAmount = PaymentCancelDetail.getCancelAmount();
+    this.cancelAmount = paymentCancelResult.getCancelAmount();
   }
 
   public void addMentoringApplication(MentoringApplication mentoringApplication) {
