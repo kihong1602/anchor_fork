@@ -9,14 +9,12 @@ import com.anchor.global.util.BankCode;
 import com.anchor.global.util.view.ViewResolver;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-@Slf4j
 @RequiredArgsConstructor
 @RequestMapping("/mentors")
 @Controller
@@ -37,7 +35,7 @@ public class MentorInfoViewController {
   @GetMapping("/me/introduction")
   public String editIntroductionPage(HttpSession session, Model model) {
     SessionUser sessionUser = SessionUser.getSessionUser(session);
-    MentorContents contents = mentorInfoService.getContents(sessionUser);
+    MentorContents contents = mentorInfoService.getContents(sessionUser.getMentorId());
     model.addAttribute("mentorContents", contents);
     return viewResolver.getViewPath("mentor", "contents-edit");
   }
